@@ -55,6 +55,10 @@ def main(args):
         src_dict.finalize(threshold=args.threshold_src, num_words=args.num_words_src)
         src_dict.save(os.path.join(args.dest_dir, 'dict.' + args.source_lang))
         if not args.quiet:
+#            print([el for el in src_dict if el!='<unk>'])
+#            for el in src_dict: 
+#                if el != '<unk>': 
+#                    print(el)
             logging.info('Built a source dictionary ({}) with {} words'.format(args.source_lang, len(src_dict)))
 
     else:
@@ -68,6 +72,9 @@ def main(args):
         tgt_dict.finalize(threshold=args.threshold_tgt, num_words=args.num_words_tgt)
         tgt_dict.save(os.path.join(args.dest_dir, 'dict.' + args.target_lang))
         if not args.quiet:
+#            for el in tgt_dict: 
+#                if el != '<unk>': 
+#                    print(el)
             logging.info('Built a target dictionary ({}) with {} words'.format(args.target_lang, len(tgt_dict)))
 
     else:
@@ -121,8 +128,9 @@ def make_binary_dataset(input_file, output_file, dictionary, tokenize=word_token
     with open(output_file, 'wb') as outf:
         pickle.dump(tokens_list, outf, protocol=pickle.HIGHEST_PROTOCOL)
         if not args.quiet:
-            logging.info('Built a binary dataset for {}: {} sentences, {} tokens, {:.3f}% replaced by unknown token'.format(
-            input_file, nsent, ntok, 100.0 * sum(unk_counter.values()) / ntok, dictionary.unk_word))
+            if sum(unk_counter.values()) > 0:
+                logging.info('Built a binary dataset for {}: {} sentences, {} tokens, {:.3f}% replaced by unknown token'.format(
+                input_file, nsent, ntok, 100.0 * sum(unk_counter.values()) / ntok, dictionary.unk_word))
 
 
 if __name__ == '__main__':
