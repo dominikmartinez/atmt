@@ -30,10 +30,15 @@ def get_args():
 
     # Add beam search arguments
     parser.add_argument('--beam-size', default=5, type=int, help='number of hypotheses expanded in beam search')
+    parser.add_argument('--n-hyp', default=1, type=int, help='number of best hypotheses to consider')
+    parser.add_argument('--gamma', default=1, type=float, help='gamma hyperparameter used for diverse beam search')
     # alpha hyperparameter for length normalization (described as lp in https://arxiv.org/pdf/1609.08144.pdf equation 14)
     parser.add_argument('--alpha', default=0.0, type=float, help='alpha for softer length normalization')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.n_hyp > args.beam_size:
+        raise argparse.ArgumentError(None, f"n-hyp must not be larger than beam-size")
+    return args
 
 
 def main(args):
@@ -76,7 +81,7 @@ def main(args):
 
         # Create a beam search object or every input sentence in batch
         batch_size = sample['src_tokens'].shape[0]
-        searches = [BeamSearch(args.beam_size, args.max_len - 1, tgt_dict.unk_idx) for i in range(batch_size)]
+        searches = [BeamSearch(args.beam_size, args.max_len - 1, tgt_dict.unk_idx, args.n_hyp) for i in range(batch_size)]
 
         with torch.no_grad():
             # Compute the encoder output
@@ -95,6 +100,9 @@ def main(args):
             # __QUESTION 2: Why do we keep one top candidate more than the beam size?
             log_probs, next_candidates = torch.topk(torch.log(torch.softmax(decoder_out, dim=2)),
                                                     args.beam_size+1, dim=-1)
+
+            penalties = torch.tensor([[list(range(1, log_probs.size(dim=2)+1))] for x in range(log_probs.size(dim=0))])
+            log_probs.add_(penalties)
 
         # Create number of beam_size beam search nodes for every input sentence
         for i in range(batch_size):
@@ -149,6 +157,8 @@ def main(args):
 
             # see __QUESTION 2
             log_probs, next_candidates = torch.topk(torch.log(torch.softmax(decoder_out, dim=2)), args.beam_size+1, dim=-1)
+            penalties = torch.tensor([[list(range(-1, -log_probs.size(dim=2)+1, -1))] for x in range(log_probs.size(dim=0))])
+            log_probs.add_(args.gamma * penalties)
 
             # Create number of beam_size next nodes for every current node
             for i in range(log_probs.shape[0]):
@@ -196,6 +206,7 @@ def main(args):
 
         # Segment into sentences
         best_sents = torch.stack([search.get_best()[1].sequence[1:].cpu() for search in searches])
+#        print(best_sents)
         decoded_batch = best_sents.numpy()
         #import pdb;pdb.set_trace()
 

@@ -6,11 +6,12 @@ from queue import PriorityQueue
 
 class BeamSearch(object):
     """ Defines a beam search object for a single input sentence. """
-    def __init__(self, beam_size, max_len, pad):
+    def __init__(self, beam_size, max_len, pad, n_hyp):
 
         self.beam_size = beam_size
         self.max_len = max_len
         self.pad = pad
+        self.n_hyp = n_hyp
 
         self.nodes = PriorityQueue() # beams to be expanded
         self.final = PriorityQueue() # beams that ended in EOS
@@ -49,10 +50,12 @@ class BeamSearch(object):
             node = self.nodes.get()
             merged.put(node)
 
-        node = merged.get()
-        node = (node[0], node[2])
+        nodes = []
+        for _ in range(self.n_hyp):
+            node = merged.get()
+            nodes.append((node[0], node[2]))
 
-        return node
+        return nodes
 
     def prune(self):
         """ Removes all nodes but the beam_size best ones (lowest neg log prob) """
