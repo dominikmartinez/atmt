@@ -102,7 +102,7 @@ def main(args):
                                                     args.beam_size+1, dim=-1)
 
             penalties = torch.tensor([[list(range(1, log_probs.size(dim=2)+1))] for x in range(log_probs.size(dim=0))])
-            log_probs.add_(penalties)
+            log_probs.add_(args.gamma * penalties)
 
         # Create number of beam_size beam search nodes for every input sentence
         for i in range(batch_size):
